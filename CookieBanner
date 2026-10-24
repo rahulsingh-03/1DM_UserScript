@@ -1,0 +1,52 @@
+// ==UserScript==
+// @name         Cookie Consent Hider
+// @namespace    https://git.apps2sd.info/idm/userscripts
+// @version      1.0.6
+// @description  Automatically blocks cookie banners and sends notice to unified notifier.
+// @match        *://*/*
+// @run-at       document-end
+// @grant        none
+// ==/UserScript==
+
+(function () {
+    'use strict';
+
+    // Safe wrapper to handle notifications even if the notifier loads later
+    function notifyUser(message) {
+        if (typeof window.show1DMPopup === 'function') {
+            window.show1DMPopup(message);
+        } else {
+            window.__1dmEarlyQueue = window.__1dmEarlyQueue || [];
+            if (!window.__1dmEarlyQueue.includes(message)) {
+                window.__1dmEarlyQueue.push(message);
+            }
+        }
+    }
+
+    const cookieSelectors = [
+        '#cookie-banner', '#consent-popup', '.cookie-banner', '.cookie-popup',
+        '.cookie-notice', '.gdpr-banner', '.gdpr-popup', '#gdpr-consent',
+        '[id*="cookie"]', '[class*="cookie"]', '[id*="consent"]', '[class*="consent"]'
+    ];
+
+    try {
+        let bannerRemoved = false;
+
+        cookieSelectors.forEach(selector => {
+            document.querySelectorAll(selector).forEach(el => {
+                if (el !== document.body && el !== document.documentElement) {
+                    el.style.display = 'none';
+                    el.remove();
+                    bannerRemoved = true;
+                }
+            });
+        });
+
+        if (bannerRemoved) {
+            document.body.style.overflow = 'auto';
+            document.documentElement.style.overflow = 'auto';
+
+            notifyUser('🍪 Cookie banners hidden!');
+        }
+    } catch (e) {}
+})();
