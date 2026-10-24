@@ -1,0 +1,73 @@
+// ==UserScript==
+// @name         Safe Auto-Bypass Link Timer
+// @namespace    https://git.apps2sd.info/idm/userscripts
+// @version      1.0.6
+// @description  Automatically clicks countdown continue/skip buttons and triggers the unified notifier.
+// @match        *://*/*
+// @run-at       document-end
+// @grant        none
+// ==/UserScript==
+
+(function () {
+    'use strict';
+
+    // Safe wrapper to handle notifications even if the notifier loads later
+    function notifyUser(message) {
+        if (typeof window.show1DMPopup === 'function') {
+            window.show1DMPopup(message);
+        } else {
+            window.__1dmEarlyQueue = window.__1dmEarlyQueue || [];
+            if (!window.__1dmEarlyQueue.includes(message)) {
+                window.__1dmEarlyQueue.push(message);
+            }
+        }
+    }
+
+    const pageKey = 'bypassed_url_' + window.location.href;
+    if (sessionStorage.getItem(pageKey)) return;
+
+    const targetKeywords = ['continue', 'skip', 'proceed', 'get link', 'verify', 'click here'];
+    let bypassed = false;
+
+    function checkAndBypass() {
+        if (bypassed) return;
+        const elements = document.querySelectorAll('a, button, input[type="submit"], input[type="button"]');
+        
+        for (let i = 0; i < elements.length; i++) {
+            const el = elements[i];
+            const text = el.textContent ? el.textContent.trim().toLowerCase() : '';
+            const value = el.value ? el.value.trim().toLowerCase() : '';
+            
+            let matchesKeyword = false;
+            for (let j = 0; j < targetKeywords.length; j++) {
+                if (text.includes(targetKeywords[j]) || value.includes(targetKeywords[j])) {
+                    matchesKeyword = true;
+                    break;
+                }
+            }
+            
+            const parentHTML = el.outerHTML.toLowerCase();
+            const isVerificationGate = parentHTML.includes('captcha') || parentHTML.includes('cloudflare') || parentHTML.includes('recaptcha');
+
+            if (matchesKeyword && el.offsetParent !== null && !isVerificationGate) {
+                try {
+                    sessionStorage.setItem(pageKey, 'true');
+                    bypassed = true;
+                    el.click();
+                    
+                    notifyUser('⚡ Redirect timer bypassed safely!');
+                    break;
+                } catch (e) {}
+            }
+        }
+    }
+
+    const interval = setInterval(function() {
+        checkAndBypass();
+        if (bypassed) clearInterval(interval);
+    }, 1000);
+
+    setTimeout(function() {
+        clearInterval(interval);
+    }, 15000);
+})();
